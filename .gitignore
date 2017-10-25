@@ -1,0 +1,6 @@
+build
+vendor
+codeclimate.json
+composer.lock
+phpunit.xml
+.idea
