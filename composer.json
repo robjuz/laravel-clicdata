@@ -3,7 +3,7 @@
   "type": "library",
   "description": "ClicData integration for Laravel 5+",
   "keywords": [
-    "podio",
+    "clicdata",
     "laravel"
   ],
   "homepage": "https://github.com/robjuz/laravel-clicdata",
@@ -25,21 +25,23 @@
   },
   "autoload": {
     "psr-4": {
-      "robjuz\\LaravelClickData\\": "src/robjuz/LaravelClickData/"
-    },
-    "autoload-dev": {
-      "psr-4": {
-        "Tests\\": "tests/"
-      }
-    },"extra": {
-      "laravel": {
-        "providers": [
-          "robjuz\\LaravelClicData\\ServiceProvider"
-        ],
-        "aliases": {
-          "ClicData": "robjuz\\LaravelClicData\\Facade"
-        }
+      "robjuz\\LaravelClickData\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "robjuz\\LaravelClicData\\ServiceProvider"
+      ],
+      "aliases": {
+        "ClicData": "robjuz\\LaravelClicData\\Facade"
       }
     }
   }
 }
+

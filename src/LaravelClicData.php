@@ -56,7 +56,7 @@ class LaravelClicData
         $refresh_token = $json['refresh_token'];
         $expires_in    = $json['expires_in'];
 
-        file_put_contents(__DIR__ . '../../config/refresh_token.txt', $refresh_token);
+        file_put_contents(__DIR__ . '/config/refresh_token.txt', $refresh_token);
 
         $expiresAt = Carbon::now()->addSeconds($expires_in);
 
@@ -86,7 +86,7 @@ class LaravelClicData
 
     protected function refreshAccessToken()
     {
-        $refresh_token_file = __DIR__ . '../../config/refresh_token.txt';
+        $refresh_token_file = __DIR__ . '/config/refresh_token.txt';
         if ( ! file_exists($refresh_token_file) OR empty($refresh_token = file_get_contents($refresh_token_file))) {
             return $this->getAccessToken();
         }

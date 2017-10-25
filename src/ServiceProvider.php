@@ -14,7 +14,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
     public function boot()
     {
         $this->publishes([
-            __DIR__ . '/../../config/config.php' => config_path('clicdata.php'),
+            __DIR__ . '/config/config.php' => config_path('clicdata.php'),
         ], 'config');
 
         $this->loadRoutesFrom(__DIR__.'/routes.php');
@@ -37,7 +37,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
     private function mergeConfig()
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../../config/config.php',
+            __DIR__ . '/config/config.php',
             'clicdata'
         );
     }
