@@ -11,100 +11,96 @@ namespace robjuz\LaravelClicData;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Ixudra\Curl\Facades\Curl;
 use robjuz\LaravelClicData\Exceptions\ConfigurationException;
 
 class LaravelClicData
 {
     public function __construct($config)
     {
-        $clientId = config('clicdata.clientId');
+        $clientId     = config('clicdata.clientId');
         $clientSecret = config('clicdata.clientSecret');
 
-        if (!$clientId || !$clientSecret) {
+        if ( ! $clientId || ! $clientSecret) {
             ConfigurationException::message('Please provide a client id & client secret for ClicData');
         }
     }
 
-    protected function makeTokenRequest($data)
+    protected function accessTokenCacheKey()
     {
-        $data_string = http_build_query($data);
+        return 'clicdata.access_token';
+    }
 
-        $ch = curl_init('https://api.clicdata.com/oauth20/token');
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'Content-Type: application/x-www-form-urlencoded',
-                'Content-Length: ' . strlen($data_string)
-            )
-        );
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    protected function refreshTokenPath()
+    {
+        return storage_path('refresh_token.txt');
+    }
 
-        $result = curl_exec($ch);
+    protected function storeAccessToken($response)
+    {
+        $access_token  = $response['access_token'];
+        $refresh_token = $response['refresh_token'];
+        $expires_in    = $response['expires_in'];
 
-        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        file_put_contents($this->refreshTokenPath(), $refresh_token);
 
-        // Check response
-        if ($http_status > 200) {
-            throw new \Exception($result);
-        }
+        $expiresAt = Carbon::now()->addSeconds($expires_in - 60);
 
-        $json          = json_decode($result, true);
-        $access_token  = $json['access_token'];
-        $refresh_token = $json['refresh_token'];
-        $expires_in    = $json['expires_in'];
-
-        file_put_contents(__DIR__ . '/config/refresh_token.txt', $refresh_token);
-
-        $expiresAt = Carbon::now()->addSeconds($expires_in);
-
-        Cache::put('clicdata.access_token', $access_token, $expiresAt);
+        Cache::put($this->accessTokenCacheKey(), $access_token, $expiresAt);
 
         return $access_token;
     }
 
     protected function getAccessToken()
     {
-        // Set post variables
-        $code          = request()->code; // something like b1ca93d9-4747-4bf1-96ff-4944588e45f1 that you will get from the callback;
-        $client_id     = config('clicdata.clientId'); // Your client id
-        $client_secret = config('clicdata.clientSecret'); // Your client secret
+        $response = Curl::to('https://api.clicdata.com/oauth20/token')
+                        ->withData([
+                            "grant_type"    => "authorization_code",
+                            "code"          => request()->code,
+                            "client_id"     => config('clicdata.clientId'),
+                            "client_secret" => config('clicdata.clientSecret'),
+                            "redirect_uri"  => route('clicdata.oauth.process')
+                        ])
+                        ->returnResponseObject()
+                        ->post();
 
-        // Create array and jSON encode it
-        $data = array(
-            "grant_type"    => "authorization_code",
-            "code"          => "$code",
-            "client_id"     => "$client_id",
-            "client_secret" => "$client_secret"
-        );
+        // Check response
+        if ($response->status > 200) {
+            throw new \Exception($response->content);
+        }
 
-        return $this->makeTokenRequest($data);
+        $result = $response->content;
+
+        return $this->storeAccessToken(json_decode($result, true));
 
     }
 
     protected function refreshAccessToken()
     {
-        $refresh_token_file = __DIR__ . '/config/refresh_token.txt';
+        $refresh_token_file = $this->refreshTokenPath();
+
         if ( ! file_exists($refresh_token_file) OR empty($refresh_token = file_get_contents($refresh_token_file))) {
             return $this->getAccessToken();
         }
 
+        $response = Curl::to('https://api.clicdata.com/oauth20/token')
+                        ->withData([
+                            "grant_type"    => "refresh_token",
+                            "refresh_token" => "$refresh_token",
+                            "client_id"     => config('clicdata.clientId'),
+                            "client_secret" => config('clicdata.clientSecret')
+                        ])
+                        ->returnResponseObject()
+                        ->post();
 
-        // Set post variables
-        $client_id     = config('clicdata.clientId'); // Your client id
-        $client_secret = config('clicdata.clientSecret'); // Your client secret
+        // Check response
+        if ($response->status > 200) {
+            throw new \Exception($response->content);
+        }
 
-        $data = array(
-            "grant_type"    => "refresh_token",
-            "code"          => "$refresh_token",
-            "client_id"     => "$client_id",
-            "client_secret" => "$client_secret"
-        );
+        $result = $response->content;
 
-        return $this->makeTokenRequest($data);
-
+        return $this->storeAccessToken(json_decode($result, true));
     }
 
     public function authorizeUrl()
@@ -117,45 +113,8 @@ class LaravelClicData
 
     public function accessToken()
     {
-        return Cache::get('clicdata.access_token', function () {
+        return Cache::get($this->accessTokenCacheKey(), function () {
             return $this->refreshAccessToken();
         });
-    }
-
-    public function get($id, $page = "")
-    {
-        $access_token = $this->accessToken();
-
-        $data        = array(
-            "id"   => $id,
-            "page" => $page,
-        );
-        $data_string = json_encode($data);
-
-        $ch = curl_init('https://api.clicdata.com/data/');
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'Authorization: Bearer ' . $access_token,
-                'Content-Type: application/json',
-                'Content-Length: ' . strlen($data_string)
-            )
-        );
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-//    curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
-
-        $result = curl_exec($ch);
-
-        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($http_status > 200) {
-            if ($http_status > 200) {
-                throw new \Exception($result);
-            }
-        }
-
-        return json_decode($result);
     }
 }

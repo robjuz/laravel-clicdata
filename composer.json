@@ -1,5 +1,5 @@
 {
-  "name": "robjuz/laravel-clickdata",
+  "name": "robjuz/laravel-clicdata",
   "type": "library",
   "description": "ClicData integration for Laravel 5+",
   "keywords": [
@@ -16,7 +16,8 @@
     }
   ],
   "require": {
-    "php": ">=7.0.0"
+    "php": ">=7.0.0",
+    "ixudra/curl": "^6.15"
   },
   "require-dev": {
     "phpunit/phpunit": "~6.0",
