@@ -80,7 +80,7 @@ class LaravelClicData
         $refresh_token_file = $this->refreshTokenPath();
 
         if ( ! file_exists($refresh_token_file) OR empty($refresh_token = file_get_contents($refresh_token_file))) {
-            return $this->getAccessToken();
+           abort(500, 'ClicData RefreshToken Error');
         }
 
         $response = Curl::to('https://api.clicdata.com/oauth20/token')
