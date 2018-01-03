@@ -21,7 +21,7 @@ class OAuthController extends Controller
 
     public function process(LaravelClicData $clic_data)
     {
-        return $clic_data->accessToken();
+        return $clic_data->getAccessToken();
     }
 
 }

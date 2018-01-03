@@ -51,7 +51,7 @@ class LaravelClicData
         return $access_token;
     }
 
-    protected function getAccessToken()
+    public function getAccessToken()
     {
         $response = Curl::to('https://api.clicdata.com/oauth20/token')
                         ->withData([
@@ -111,10 +111,30 @@ class LaravelClicData
         return "https://api.clicdata.com/oauth20/authorize?response_type=code&client_id={$client_id}&scope=data_read&redirect_uri={$redirect_uri}";
     }
 
-    public function accessToken()
+    protected function accessToken()
     {
         return Cache::get($this->accessTokenCacheKey(), function () {
             return $this->refreshAccessToken();
         });
+    }
+
+    public function get($id, $page = "")
+    {
+        $response = Curl::to("https://api.clicdata.com/data/{$id}")
+                        ->withHeader('Authorization: Bearer ' . $this->accessToken())
+                        ->asJson()
+                        ->get();
+
+        return $response->data;
+    }
+
+    public function all($options = [])
+    {
+        $response = Curl::to('https://api.clicdata.com/data/')
+                        ->withHeader('Authorization: Bearer ' . $this->accessToken())
+                        ->asJson()
+                        ->get();
+
+        return $response->data;
     }
 }
